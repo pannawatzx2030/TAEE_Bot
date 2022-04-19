@@ -28,6 +28,7 @@ function suggestToTAEEConfirm(agent){
   let contentType = agent.parameters.TypeOfSource;
   let sourceURL = agent.parameters.SourceURL;
   let contentOfCourse = agent.parameters.ContentOfCourse;
+  console.log("Course :", course);
   if(contentType == "Textbook"){
     return db.collection("materialDatabase").doc(course).collection(contentType).add({
       course: course,
@@ -44,6 +45,7 @@ function suggestToTAEEConfirm(agent){
       source: sourceURL
     }).then(doc => {
       console.log("Add doc ID >> " + doc.id);
+      agent.add("Add doc success");
     });
   }
 }
@@ -53,6 +55,7 @@ function suggestToUSERConfirm(agent){
   let course = agent.parameters.Course;
   let contentType = agent.parameters.TypeOfSource;
   let contentOfCourse = agent.parameters.ContentOfCourse;
+  console.log("Course :", course);
   const dataRef = db.collection("materialDatabase").doc(course).collection(contentType);
   if(contentType == "Textbook"){
     dataRef.doc("0znKXgZYWYk3h9OxbhrF").get().then(doc => {
@@ -79,6 +82,12 @@ const appFulfillment = express();
 appFulfillment.get("/test", (request, response) => {
   console.log("Hello From Firebase Functions !! (GET /test)");
   response.send("Hello From Firebase Functions !! (GET /test)");
+  db.collection("materialDatabase").doc("Control Systems").collection("Textbook").add({
+    course: "control",
+    source: "www.test.com"
+  }).then(doc => {
+    console.log("Log : ", doc.id);
+  });
 });
 
 appFulfillment.post("/webhook", line.middleware(lineConfig), (request, response) => {
