@@ -6,7 +6,7 @@ const { WebhookClient } = require("dialogflow-fulfillment");
 const express = require("express");
 const line = require("@line/bot-sdk");
 const dotenv = require("dotenv");
-const serviceAccount = require("./serviceAccountKey.json");
+const serviceAccount = require("./config/serviceAccountKey.json");
 
 process.env.DEBUG = "dialogflow:*";
 admin.initializeApp({
@@ -34,6 +34,7 @@ function suggestToTAEEConfirm(agent){
       source: sourceURL
     }).then(doc => {
       console.log("Add doc ID >> " + doc.id);
+      agent.add("Add doc success");
     });
   }
   else{
@@ -69,6 +70,7 @@ function suggestToUSERConfirm(agent){
   }
   else{
     console.log("Not Textbook");
+    agent.add("Not Textbook");
   }
 }
 
