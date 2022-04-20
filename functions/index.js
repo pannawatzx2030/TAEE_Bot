@@ -2,7 +2,7 @@
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const { WebhookClient } = require("dialogflow-fulfillment");
+const { WebhookClient, Payload } = require("dialogflow-fulfillment");
 const express = require("express");
 const line = require("@line/bot-sdk");
 const dotenv = require("dotenv");
@@ -22,35 +22,41 @@ const lineConfig = {
 const client = new line.Client(lineConfig);
 
 // Program Functions
-function suggestToTAEEConfirm(agent){
+async function suggestToTAEEConfirm(agent){
   console.log("Preparing for add to firestore");
   let course = agent.parameters.Course;
   let contentType = agent.parameters.TypeOfSource;
   let sourceURL = agent.parameters.SourceURL;
-  let contentOfCourse = agent.parameters.ContentOfCourse;
-  console.log("Course :", course);
+  let contentOfCourse;
+  switch (course) {
+    case "Control Systems":
+      contentOfCourse = agent.parameters.ContentOfCourse.ContentOfControl;
+      break;
+    case "Signals and Systems":
+      contentOfCourse = agent.parameters.ContentOfCourse.ContentOfSignal;
+      break
+    default:
+      break;
+  }
+  console.log("Content C :", contentOfCourse);
   if(contentType == "Textbook"){
-    return db.collection("materialDatabase").doc(course).collection(contentType).add({
+    db.collection("materialDatabase").doc(course).collection(contentType).add({
       course: course,
       source: sourceURL
-    }).then(doc => {
-      console.log("Add doc ID >> " + doc.id);
-      agent.add("Add doc success");
     });
   }
   else{
-    return db.collection("materialDatabase").doc(course).collection(contentType).doc("data").collection(contentOfCourse).add({
+    db.collection("materialDatabase").doc(course).collection(contentType).doc("data").collection(contentOfCourse).add({
       course: course,
       content: contentOfCourse,
       source: sourceURL
-    }).then(doc => {
-      console.log("Add doc ID >> " + doc.id);
-      agent.add("Add doc success");
     });
   }
+  console.log("Add doc success");
+  await agent.add("ขอบคุณที่สอนเราน้าาาา ><");
 }
 
-function suggestToUSERConfirm(agent){
+async function suggestToUSERConfirm(agent){
   console.log("Preparing for load data from firestore");
   let course = agent.parameters.Course;
   let contentType = agent.parameters.TypeOfSource;
@@ -73,7 +79,7 @@ function suggestToUSERConfirm(agent){
   }
   else{
     console.log("Not Textbook");
-    agent.add("Not Textbook");
+    await agent.add("Not Textbook");
   }
 }
 
@@ -81,7 +87,6 @@ const appFulfillment = express();
 
 appFulfillment.get("/test", (request, response) => {
   console.log("Hello From Firebase Functions !! (GET /test)");
-  response.send("Hello From Firebase Functions !! (GET /test)");
   db.collection("materialDatabase").doc("Control Systems").collection("Textbook").add({
     course: "control",
     source: "www.test.com"
@@ -105,7 +110,6 @@ appFulfillment.post("/webhook", line.middleware(lineConfig), (request, response)
 
 appFulfillment.post("/fulfillment", (request, response) => {
   console.log("Hello From Firebase Functions !! (POST /fulfillment)");
-  response.send("Hello From Firebase Functions !! (POST /fulfillment)");
   const agent = new WebhookClient( {request, response} );
   let intentMap = new Map();
   intentMap.set("Suggest To TAEE - yes", suggestToTAEEConfirm);
