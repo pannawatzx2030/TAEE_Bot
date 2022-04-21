@@ -53,34 +53,42 @@ async function suggestToTAEEConfirm(agent){
     });
   }
   console.log("Add doc success");
-  await agent.add("ขอบคุณที่สอนเราน้าาาา ><");
+  await agent.add("ขอบคุณที่สอนเราน้าาาา >^<");
 }
 
 async function suggestToUSERConfirm(agent){
   console.log("Preparing for load data from firestore");
+  let data;
   let course = agent.parameters.Course;
   let contentType = agent.parameters.TypeOfSource;
-  let contentOfCourse = agent.parameters.ContentOfCourse;
-  console.log("Course :", course);
+  let contentOfCourse;
+  switch (course) {
+    case "Control Systems":
+      contentOfCourse = agent.parameters.ContentOfCourse.ContentOfControl;
+      break;
+    case "Signals and Systems":
+      contentOfCourse = agent.parameters.ContentOfCourse.ContentOfSignal;
+      break
+    default:
+      break;
+  }
+  console.log("Content C :", contentOfCourse);
   const dataRef = db.collection("materialDatabase").doc(course).collection(contentType);
   if(contentType == "Textbook"){
-    dataRef.doc("0znKXgZYWYk3h9OxbhrF").get().then(doc => {
-      if(doc.exists){
-        console.log("Doc data : ", doc.data());
-        agent.add("Doc data");
-      }
-      else{
-        console.log("Doc not found");
-        agent.add("Doc Not found");
-      }
-    }).catch(error => {
-      console.log("Error getting document:", error);
+    dataRef.get().then(snapDocs => {
+      snapDocs.forEach(doc => {
+        console.log(doc.id, "=>", doc.data());
+      });
     });
   }
   else{
-    console.log("Not Textbook");
-    await agent.add("Not Textbook");
+    dataRef.doc("data").collection(contentOfCourse).get().then(snapDocs => {
+      snapDocs.forEach(doc =>{
+        console.log(doc.id, "==>", doc.data());
+      });
+    });
   }
+  // data out
 }
 
 const appFulfillment = express();
