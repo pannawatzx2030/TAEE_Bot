@@ -58,7 +58,7 @@ async function suggestToTAEEConfirm(agent){
 
 async function suggestToUSERConfirm(agent){
   console.log("Preparing for load data from firestore");
-  let data;
+  let data, docId;
   let course = agent.parameters.Course;
   let contentType = agent.parameters.TypeOfSource;
   let contentOfCourse;
@@ -78,15 +78,24 @@ async function suggestToUSERConfirm(agent){
     const snapShot = await dataRef.get();
     snapShot.forEach(doc => {
       console.log(doc.id, "=>", doc.data());
+      data = doc.data().source;
+      docId = doc.id;
     });
   }
   else{
     const snapShot = await dataRef.doc("data").collection(contentOfCourse).get();
     snapShot.forEach(doc => {
       console.log(doc.id, "=>", doc.data());
+      data = doc.data().source;
+      docId = doc.id;
     });
   }
-  // data out
+  // data out and send context
+  let paramCtx = {docId};
+  let ctx = {"name": "docidctx", "lifespan": 5, "parameters": {"docId": paramCtx}};
+  agent.setContext(ctx);
+  console.log("Set Context");
+  await agent.add(data);
 }
 
 const appFulfillment = express();
