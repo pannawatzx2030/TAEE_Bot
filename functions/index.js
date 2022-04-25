@@ -28,32 +28,55 @@ async function suggestToTAEEConfirm(agent){
   let contentType = agent.parameters.TypeOfSource;
   let sourceURL = agent.parameters.SourceURL;
   let contentOfCourse;
-  switch (course) {
+  let valid = 0;
+  switch(course){
     case "Control Systems":
-      contentOfCourse = agent.parameters.ContentOfCourse.ContentOfControl;
+      if(agent.parameters.contentOfCourse == "ContentOfControl"){
+        contentOfCourse = agent.parameters.ContentOfCourse.ContentOfControl;
+      }
+      else{
+        valid = 1;
+      }
       break;
     case "Signals and Systems":
-      contentOfCourse = agent.parameters.ContentOfCourse.ContentOfSignal;
+      if(agent.parameters.contentOfCourse == "ContentOfSignal"){
+        contentOfCourse = agent.parameters.ContentOfCourse.ContentOfSignal;
+      }
+      else{
+        valid = 1;
+      }
       break
     default:
       break;
   }
   console.log("Content C :", contentOfCourse);
-  if(contentType == "Textbook"){
-    db.collection("materialDatabase").doc(course).collection(contentType).add({
-      course: course,
-      source: sourceURL
-    });
+  if(valid == 0){
+    if(contentType == "Textbook"){
+      db.collection("materialDatabase").doc(course).collection(contentType).add({
+        course: course,
+        source: sourceURL,
+        score: 0,
+        view: 0,
+        avgScore: 0
+      });
+    }
+    else{
+      db.collection("materialDatabase").doc(course).collection(contentType).doc("data").collection(contentOfCourse).add({
+        course: course,
+        content: contentOfCourse,
+        source: sourceURL,
+        score: 0,
+        view: 0,
+        avgScore: 0
+      });
+    }
+    console.log("Add doc success");
+    return await agent.add("ขอบคุณที่สอนเราน้าาาา >^<");
   }
   else{
-    db.collection("materialDatabase").doc(course).collection(contentType).doc("data").collection(contentOfCourse).add({
-      course: course,
-      content: contentOfCourse,
-      source: sourceURL
-    });
+    console.log("Content doesn't match");
+    return await agent.add("เนื้อหากับวิชาไม่สอดคล้องกันช่วยสอนใหม่หน่อยนะ");
   }
-  console.log("Add doc success");
-  await agent.add("ขอบคุณที่สอนเราน้าาาา >^<");
 }
 
 async function suggestToUSERConfirm(agent){
