@@ -7,6 +7,7 @@ const express = require("express");
 const line = require("@line/bot-sdk");
 const dotenv = require("dotenv");
 const serviceAccount = require("./config/serviceAccountKey.json");
+const message = require("./message");
 
 process.env.DEBUG = "dialogflow:*";
 admin.initializeApp({
@@ -28,19 +29,21 @@ async function suggestToTAEEConfirm(agent){
   let contentType = agent.parameters.TypeOfSource;
   let sourceURL = agent.parameters.SourceURL;
   let contentOfCourse;
-  let valid = 0;
+  let valid;
   switch(course){
     case "Control Systems":
-      if(agent.parameters.contentOfCourse == "ContentOfControl"){
+      if(agent.parameters.ContentOfCourse == "ContentOfControl"){
         contentOfCourse = agent.parameters.ContentOfCourse.ContentOfControl;
+        valid = 0;
       }
       else{
         valid = 1;
       }
       break;
     case "Signals and Systems":
-      if(agent.parameters.contentOfCourse == "ContentOfSignal"){
+      if(agent.parameters.ContentOfCourse == "ContentOfSignal"){
         contentOfCourse = agent.parameters.ContentOfCourse.ContentOfSignal;
+        valid = 0;
       }
       else{
         valid = 1;
@@ -71,11 +74,11 @@ async function suggestToTAEEConfirm(agent){
       });
     }
     console.log("Add doc success");
-    return await agent.add("ขอบคุณที่สอนเราน้าาาา >^<");
+    await agent.add("ขอบคุณที่สอนเราน้าาาา >^<");
   }
   else{
     console.log("Content doesn't match");
-    return await agent.add("เนื้อหากับวิชาไม่สอดคล้องกันช่วยสอนใหม่หน่อยนะ");
+    await agent.add("เนื้อหากับวิชาไม่สอดคล้องกันช่วยสอนใหม่หน่อยนะ");
   }
 }
 
@@ -115,10 +118,11 @@ async function suggestToUSERConfirm(agent){
   }
   // data out and send context
   let paramCtx = {docId};
-  let ctx = {"name": "docidctx", "lifespan": 5, "parameters": {"docId": paramCtx}};
+  let ctx = {"name": "docidctx", "lifespan": 3, "parameters": {"docId": paramCtx}};
   agent.setContext(ctx);
   console.log("Set Context");
-  await agent.add(data);
+  let payload = new Payload(`LINE`, message.feedbackReview(data), {sendAsMessage: true});
+  await agent.add(payload);
 }
 
 const appFulfillment = express();
