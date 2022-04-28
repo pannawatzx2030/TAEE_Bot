@@ -52,10 +52,11 @@ async function suggestToTAEEConfirm(agent){
     default:
       break;
   }
+  const dataRef = db.collection("materialDatabase").doc(course).collection(contentType);
   console.log("Content C :", contentOfCourse);
   if(valid == 0){
     if(contentType == "Textbook"){
-      db.collection("materialDatabase").doc(course).collection(contentType).add({
+      dataRef.add({
         course: course,
         source: sourceURL,
         score: 0,
@@ -64,7 +65,7 @@ async function suggestToTAEEConfirm(agent){
       });
     }
     else{
-      db.collection("materialDatabase").doc(course).collection(contentType).doc("data").collection(contentOfCourse).add({
+      dataRef.doc("data").collection(contentOfCourse).add({
         course: course,
         content: contentOfCourse,
         source: sourceURL,
@@ -88,6 +89,67 @@ async function suggestToUSERConfirm(agent){
   let course = agent.parameters.Course;
   let contentType = agent.parameters.TypeOfSource;
   let contentOfCourse;
+  let valid;
+  switch(course){
+    case "Control Systems":
+      if(agent.parameters.ContentOfCourse == "ContentOfControl"){
+        contentOfCourse = agent.parameters.ContentOfCourse.ContentOfControl;
+        valid = 0;
+      }
+      else{
+        valid = 1;
+      }
+      break;
+    case "Signals and Systems":
+      if(agent.parameters.ContentOfCourse == "ContentOfSignal"){
+        contentOfCourse = agent.parameters.ContentOfCourse.ContentOfSignal;
+        valid = 0;
+      }
+      else{
+        valid = 1;
+      }
+      break
+    default:
+      break;
+  }
+  const dataRef = db.collection("materialDatabase").doc(course).collection(contentType);
+  console.log("Content C :", contentOfCourse);
+  if(valid == 0){
+    if(contentType == "Textbook"){
+      const snapShot = await dataRef.get();
+      snapShot.forEach(doc => {
+        console.log(doc.id, "=>", doc.data());
+        data = doc.data().source;
+        docId = doc.id;
+      });
+    }
+    else{
+      const snapShot = await dataRef.doc("data").collection(contentOfCourse).get();
+      snapShot.forEach(doc => {
+        console.log(doc.id, "=>", doc.data());
+        data = doc.data().source;
+        docId = doc.id;
+      });
+    }
+    // data out and send context
+    let paramCtx = {docId};
+    let ctx = {"name": "docidctx", "lifespan": 1, "parameters": {"docId": paramCtx}};
+    agent.setContext(ctx);
+    console.log("Set Context");
+    let payload = new Payload(`LINE`, message.feedbackReview(data), {sendAsMessage: true});
+    await agent.add(payload);
+  }
+  else{
+    console.log("Content doesn't match");
+    await agent.add("เนื้อหากับวิชาไม่สอดคล้องกันรบกวนขอใหม่หน่อยน้าา");
+  }
+}
+
+async function userReviewConfirm(agent){
+  console.log("Preparing to update STAR in firebase");
+  let course = agent.parameters.Course;
+  let contentType = agent.parameters.TypeOfSource;
+  let contentOfCourse;
   switch (course) {
     case "Control Systems":
       contentOfCourse = agent.parameters.ContentOfCourse.ContentOfControl;
@@ -98,32 +160,8 @@ async function suggestToUSERConfirm(agent){
     default:
       break;
   }
-  console.log("Content C :", contentOfCourse);
-  const dataRef = db.collection("materialDatabase").doc(course).collection(contentType);
-  if(contentType == "Textbook"){
-    const snapShot = await dataRef.get();
-    snapShot.forEach(doc => {
-      console.log(doc.id, "=>", doc.data());
-      data = doc.data().source;
-      docId = doc.id;
-    });
-  }
-  else{
-    const snapShot = await dataRef.doc("data").collection(contentOfCourse).get();
-    snapShot.forEach(doc => {
-      console.log(doc.id, "=>", doc.data());
-      data = doc.data().source;
-      docId = doc.id;
-    });
-  }
-  // data out and send context
-  let paramCtx = {docId};
-  let ctx = {"name": "docidctx", "lifespan": 3, "parameters": {"docId": paramCtx}};
-  agent.setContext(ctx);
-  console.log("Set Context");
-  let payload = new Payload(`LINE`, message.feedbackReview(data), {sendAsMessage: true});
-  await agent.add(payload);
-}
+  let keyAddress = agent.parameters.KeyAddress.docId;
+} 
 
 const appFulfillment = express();
 
@@ -156,6 +194,7 @@ appFulfillment.post("/fulfillment", (request, response) => {
   let intentMap = new Map();
   intentMap.set("Suggest To TAEE - yes", suggestToTAEEConfirm);
   intentMap.set("Suggest to User - yes", suggestToUSERConfirm);
+  intentMap.set("Suggest to User - yes - score", userReviewConfirm);
   agent.handleRequest(intentMap);
 });
 
