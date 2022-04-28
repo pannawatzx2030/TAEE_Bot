@@ -30,9 +30,14 @@ async function suggestToTAEEConfirm(agent){
   let sourceURL = agent.parameters.SourceURL;
   let contentOfCourse;
   let valid;
+  console.log("course : ",course);
+  console.log("content T : ",contentType);
+  console.log("source :", sourceURL);
+  console.log(">>>>> Agent.param.ContentOfCourse <<<<< : ", agent.parameters.ContentOfCourse);
+  console.log(">>>>> Agent.param.ContentOfCourse KEY <<<<< : ", Object.keys(agent.parameters.ContentOfCourse)[0]);
   switch(course){
     case "Control Systems":
-      if(agent.parameters.ContentOfCourse == "ContentOfControl"){
+      if(Object.keys(agent.parameters.ContentOfCourse)[0] == "ContentOfControl"){
         contentOfCourse = agent.parameters.ContentOfCourse.ContentOfControl;
         valid = 0;
       }
@@ -41,7 +46,7 @@ async function suggestToTAEEConfirm(agent){
       }
       break;
     case "Signals and Systems":
-      if(agent.parameters.ContentOfCourse == "ContentOfSignal"){
+      if(Object.keys(agent.parameters.ContentOfCourse)[0] == "ContentOfSignal"){
         contentOfCourse = agent.parameters.ContentOfCourse.ContentOfSignal;
         valid = 0;
       }
@@ -90,9 +95,13 @@ async function suggestToUSERConfirm(agent){
   let contentType = agent.parameters.TypeOfSource;
   let contentOfCourse;
   let valid;
+  console.log("course : ",course);
+  console.log("content T : ",contentType);
+  console.log(">>>>> Agent.param.ContentOfCourse <<<<< : ", agent.parameters.ContentOfCourse);
+  console.log(">>>>> Agent.param.ContentOfCourse KEY <<<<< : ", Object.keys(agent.parameters.ContentOfCourse)[0]);
   switch(course){
     case "Control Systems":
-      if(agent.parameters.ContentOfCourse == "ContentOfControl"){
+      if(Object.keys(agent.parameters.ContentOfCourse)[0] == "ContentOfControl"){
         contentOfCourse = agent.parameters.ContentOfCourse.ContentOfControl;
         valid = 0;
       }
@@ -101,7 +110,7 @@ async function suggestToUSERConfirm(agent){
       }
       break;
     case "Signals and Systems":
-      if(agent.parameters.ContentOfCourse == "ContentOfSignal"){
+      if(Object.keys(agent.parameters.ContentOfCourse)[0] == "ContentOfSignal"){
         contentOfCourse = agent.parameters.ContentOfCourse.ContentOfSignal;
         valid = 0;
       }
@@ -112,6 +121,7 @@ async function suggestToUSERConfirm(agent){
     default:
       break;
   }
+  console.log("Valid : ", valid);
   const dataRef = db.collection("materialDatabase").doc(course).collection(contentType);
   console.log("Content C :", contentOfCourse);
   if(valid == 0){
@@ -139,10 +149,12 @@ async function suggestToUSERConfirm(agent){
     let payload = new Payload(`LINE`, message.feedbackReview(data), {sendAsMessage: true});
     await agent.add(payload);
   }
+
   else{
     console.log("Content doesn't match");
     await agent.add("เนื้อหากับวิชาไม่สอดคล้องกันรบกวนขอใหม่หน่อยน้าา");
   }
+
 }
 
 async function userReviewConfirm(agent){
