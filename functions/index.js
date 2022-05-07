@@ -66,7 +66,8 @@ async function suggestToTAEEConfirm(agent){
         source: sourceURL,
         score: 0,
         view: 0,
-        avgScore: 0
+        avgScore: 0,
+        modified: admin.firestore.FieldValue.serverTimestamp() 
       });
     }
     else{
@@ -76,7 +77,8 @@ async function suggestToTAEEConfirm(agent){
         source: sourceURL,
         score: 0,
         view: 0,
-        avgScore: 0
+        avgScore: 0,
+        modified: admin.firestore.FieldValue.serverTimestamp()
       });
     }
     console.log("Add doc success");
@@ -90,11 +92,13 @@ async function suggestToTAEEConfirm(agent){
 
 async function suggestToUSERConfirm(agent){
   console.log("Preparing for load data from firestore");
+  const limitdata = 1;
   let data, docId;
   let course = agent.parameters.Course;
   let contentType = agent.parameters.TypeOfSource;
   let contentOfCourse;
   let valid;
+  var arrayOfData = [];
   console.log("course : ",course);
   console.log("content T : ",contentType);
   console.log(">>>>> Agent.param.ContentOfCourse <<<<< : ", agent.parameters.ContentOfCourse);
@@ -126,21 +130,25 @@ async function suggestToUSERConfirm(agent){
   console.log("Content C :", contentOfCourse);
   if(valid == 0){
     if(contentType == "Textbook"){
-      const snapShot = await dataRef.get();
-      snapShot.forEach(doc => {
-        console.log(doc.id, "=>", doc.data());
-        data = doc.data().source;
-        docId = doc.id;
+      const orderByAvgScore = await dataRef.orderBy("avgScore", "desc").limit(limitdata).get();
+      orderByAvgScore.forEach(doc => {
+        console.log("doc.id : ", doc.id);
+        arrayOfData.push([doc.id, doc.data().source]);
       });
     }
     else{
-      const snapShot = await dataRef.doc("data").collection(contentOfCourse).get();
-      snapShot.forEach(doc => {
-        console.log(doc.id, "=>", doc.data());
-        data = doc.data().source;
-        docId = doc.id;
+      const orderByAvgScore = await dataRef.doc("data").collection(contentOfCourse).orderBy("avgScore", "desc").limit(limitdata).get();
+      orderByAvgScore.forEach(doc => {
+        console.log("doc.id : ", doc.id);
+        arrayOfData.push([doc.id, doc.data().source]);
       });
     }
+    // Random Data from arrayOfData
+    let random = Math.floor(Math.random() * arrayOfData.length);
+    console.log("Array : ", arrayOfData[random]);
+    // Structure of data : arrayOfData[x][y] y = 0 : docId, y = 1 : sourceURL
+    docId = arrayOfData[random][0];
+    data = arrayOfData[random][1];
     // data out and send context
     let paramCtx = {docId};
     let ctx = {"name": "docidctx", "lifespan": 1, "parameters": {"docId": paramCtx}};
@@ -149,12 +157,10 @@ async function suggestToUSERConfirm(agent){
     let payload = new Payload(`LINE`, message.feedbackReview(data), {sendAsMessage: true});
     await agent.add(payload);
   }
-
   else{
     console.log("Content doesn't match");
     await agent.add("เนื้อหากับวิชาไม่สอดคล้องกันรบกวนขอใหม่หน่อยน้าา");
   }
-
 }
 
 async function userReviewConfirm(agent){
@@ -172,8 +178,48 @@ async function userReviewConfirm(agent){
     default:
       break;
   }
-  let keyAddress = agent.parameters.KeyAddress.docId;
-} 
+  let docId = agent.parameters.DocId.docId;
+  let score = agent.parameters.Score;
+  const dataRef = db.collection("materialDatabase").doc(course).collection(contentType);
+  console.log("Course : ", course);
+  console.log("Content Type : ", contentType);
+  console.log("Content C :", contentOfCourse);
+  console.log("DocId : ", docId);
+  console.log("Score : ", score);
+  if(contentType == "Textbook"){
+    const textRef = dataRef.doc(docId);
+    try{
+      const res = await db.runTransaction(async transaction => {
+        const doc = await transaction.get(textRef);
+        const newScore = doc.data().score + parseInt(score);
+        const newView = doc.data().view + 1;
+        const newAvgScore = newScore / newView;
+        const newModified = admin.firestore.FieldValue.serverTimestamp();
+        await transaction.update(textRef, {score: newScore, view: newView, avgScore: newAvgScore, modified: newModified});
+      });
+      console.log("Transaction success", res);
+    } catch (error) {
+      console.log("Transaction failed", error);
+    }
+  } 
+  else{
+    const textRef = dataRef.doc("data").collection(contentOfCourse).doc(docId);
+    try{
+      const res = await db.runTransaction(async transaction => {
+        const doc = await transaction.get(textRef);
+        const newScore = doc.data().score + parseInt(score);
+        const newView = doc.data().view + 1;
+        const newAvgScore = newScore / newView;
+        const newModified = admin.firestore.FieldValue.serverTimestamp();
+        await transaction.update(textRef, {score: newScore, view: newView, avgScore: newAvgScore, modified: newModified});
+      });
+      console.log("Transaction success", res);
+    } catch (error) {
+      console.log("Transaction failed", error);
+    }
+  } 
+  agent.add("ขอบคุณสำหรับการให้คะแนนนะคะ");
+}
 
 const appFulfillment = express();
 
@@ -211,3 +257,4 @@ appFulfillment.post("/fulfillment", (request, response) => {
 });
 
 exports.dialogflowFirebaseFulfillment = functions.region("asia-southeast1").https.onRequest(appFulfillment);
+
