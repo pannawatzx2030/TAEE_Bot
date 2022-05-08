@@ -1,5 +1,6 @@
 "use strict"
 
+// =================================== Program Setting ===================================
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { WebhookClient, Payload } = require("dialogflow-fulfillment");
@@ -8,7 +9,8 @@ const line = require("@line/bot-sdk");
 const dotenv = require("dotenv");
 const serviceAccount = require("./config/serviceAccountKey.json");
 const message = require("./message");
-const richMenu = require("./richMenu");
+const { postToDialogflow, createLineTextEvent, convertToDialogflow } = require('./dialogflow');
+const { event } = require("firebase-functions/v1/analytics");
 
 process.env.DEBUG = "dialogflow:*";
 admin.initializeApp({
@@ -18,12 +20,13 @@ const db = admin.firestore();
 const env = dotenv.config().parsed;
 const lineConfig = {
   channelAccessToken: env.ACCESS_TOKEN,
-  channelSecret: env.SECRET_TOKEN, 
+  channelSecret: env.CHANNEL_SECRET, 
 };
-
 const client = new line.Client(lineConfig);
+// =================================== END Program Setting ===================================
 
-// Program Functions
+// =================================== Main Program For DialogFlow Function ===================================
+// =================================== Suggest to TAEE Function ===================================
 async function suggestToTAEEConfirm(agent){
   console.log("Preparing for add to firestore");
   let course = agent.parameters.Course;
@@ -90,7 +93,7 @@ async function suggestToTAEEConfirm(agent){
     await agent.add("เนื้อหากับวิชาไม่สอดคล้องกันช่วยสอนใหม่หน่อยนะ");
   }
 }
-
+// =================================== Suggest to User Function ===================================
 async function suggestToUSERConfirm(agent){
   console.log("Preparing for load data from firestore");
   const limitdata = 1;
@@ -163,7 +166,7 @@ async function suggestToUSERConfirm(agent){
     await agent.add("เนื้อหากับวิชาไม่สอดคล้องกันรบกวนขอใหม่หน่อยน้าา");
   }
 }
-
+// =================================== Update Score Function ===================================
 async function userReviewConfirm(agent){
   console.log("Preparing to update STAR in firebase");
   let course = agent.parameters.Course;
@@ -221,7 +224,65 @@ async function userReviewConfirm(agent){
   } 
   agent.add("ขอบคุณสำหรับการให้คะแนนนะคะ");
 }
+// =================================== END Main Program For DialogFlow Function ===================================
 
+// =================================== Handle Event Function ===================================
+async function handleEvent(request, event) {
+  switch(event.type){
+    case "message":
+      switch(event.message.type){
+        case "text": return handleText(request, event); break;
+      }
+    case "postback": return handlePostback(request, event); break;
+    default: throw new Error(`Unknown event: ${JSON.stringify(event)}`);
+  }
+}
+// =================================== Handle Text ===================================
+async function handleText(request) {
+  return await postToDialogflow(request);
+}
+// =================================== Handle Postback ===================================
+function handlePostback(request) {
+  // Define Rich MENU ID
+  let richMenuId001 = env.RICH_MENU_ID001;
+  let richMenuId002 = env.RICH_MENU_ID002;
+  let richMenuId003 = env.RICH_MENU_ID003;
+  let richMenuId004 = env.RICH_MENU_ID004;
+  let richMenuId005 = env.RICH_MENU_ID005;
+  let richMenuId006 = env.RICH_MENU_ID006;
+  let richMenuId007 = env.RICH_MENU_ID007;
+
+  if(request.body.uid !== undefined){
+    linkRichMenu(request.body.uid, richMenuId001);
+  } 
+  else{
+    let event = request.body.events[0];
+    if(event.type === "postback"){
+        switch(event.postback.data){
+            case "toMainMenu": linkRichMenu(event.source.userId, richMenuId001); break;
+            case "toTaeeMenu": linkRichMenu(event.source.userId, richMenuId002); break;
+            case "toUserMenu": linkRichMenu(event.source.userId, richMenuId003); break;
+            case "toTaeeSignalToType": linkRichMenu(event.source.userId, richMenuId004); break;
+            case "toTaeeControlToType": linkRichMenu(event.source.userId, richMenuId005); break;
+            case "toUserSignalToType": linkRichMenu(event.source.userId, richMenuId006); break;
+            case "toUserControlToType": linkRichMenu(event.source.userId, richMenuId007); break;
+            default: break;
+        }
+    }
+  }
+}
+// =================================== linkRichMenu Function ===================================
+async function linkRichMenu(userId, richMenuId) {  
+  await request.post({
+      uri: `https://api.line.me/v2/bot/user/${userId}/richmenu/${richMenuId}`,
+      headers: {
+          Authorization: `Bearer ${env.ACCESS_TOKEN}`
+      }
+  });
+}
+// =================================== END Handle Event Function ===================================
+
+// =================================== Fullfillment API ===================================
 const appFulfillment = express();
 
 appFulfillment.get("/test", (request, response) => {
@@ -236,15 +297,9 @@ appFulfillment.get("/test", (request, response) => {
 
 appFulfillment.post("/webhook", line.middleware(lineConfig), (request, response) => {
   console.log("Hello From Firebase Functions !! (POST /webhook)");
-  try{
-    console.log("Events >> ", request.body.events);
-    console.log("Requset body >> ", JSON.stringify(request.body, null, 2));
-    response.status(200).end();
-  }
-  catch(error){
-    console.log("Error >> ", error);
-    response.status(500).end();
-  }
+  Promise.all(request.body.events.map(event => {
+    return handleEvent(request, event);
+  }))
 });
 
 appFulfillment.post("/fulfillment", (request, response) => {
@@ -256,7 +311,7 @@ appFulfillment.post("/fulfillment", (request, response) => {
   intentMap.set("Suggest to User - yes - score", userReviewConfirm);
   agent.handleRequest(intentMap);
 });
+// =================================== END Fullfillment API ===================================
 
 exports.dialogflowFirebaseFulfillment = functions.region("asia-southeast1").https.onRequest(appFulfillment);
-exports.richMenu = richMenu.richMenu;
 

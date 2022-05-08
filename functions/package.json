@@ -16,11 +16,13 @@
     "@line/bot-sdk": "^7.5.0",
     "actions-on-google": "^3.0.0",
     "axios": "^0.21.2",
+    "crypto": "^1.0.1",
     "dialogflow-fulfillment": "^0.6.1",
     "dotenv": "^16.0.0",
     "express": "^4.17.3",
     "firebase-admin": "^10.0.2",
     "firebase-functions": "^3.20.1",
+    "request": "^2.88.2",
     "request-promise": "^4.2.6"
   },
   "devDependencies": {
