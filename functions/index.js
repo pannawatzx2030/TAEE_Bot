@@ -8,6 +8,7 @@ const line = require("@line/bot-sdk");
 const dotenv = require("dotenv");
 const serviceAccount = require("./config/serviceAccountKey.json");
 const message = require("./message");
+const richMenu = require("./richMenu");
 
 process.env.DEBUG = "dialogflow:*";
 admin.initializeApp({
@@ -257,4 +258,5 @@ appFulfillment.post("/fulfillment", (request, response) => {
 });
 
 exports.dialogflowFirebaseFulfillment = functions.region("asia-southeast1").https.onRequest(appFulfillment);
+exports.richMenu = richMenu.richMenu;
 
