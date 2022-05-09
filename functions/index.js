@@ -9,8 +9,8 @@ const line = require("@line/bot-sdk");
 const dotenv = require("dotenv");
 const serviceAccount = require("./config/serviceAccountKey.json");
 const message = require("./message");
-const { postToDialogflow, createLineTextEvent, convertToDialogflow } = require('./dialogflow');
-const { event } = require("firebase-functions/v1/analytics");
+const { postToDialogflow } = require('./dialogflow');
+const request_promise = require("request-promise");
 
 process.env.DEBUG = "dialogflow:*";
 admin.initializeApp({
@@ -228,12 +228,13 @@ async function userReviewConfirm(agent){
 
 // =================================== Handle Event Function ===================================
 async function handleEvent(request, event) {
+  console.log("Handle Event");
   switch(event.type){
     case "message":
       switch(event.message.type){
-        case "text": return handleText(request, event); break;
+        case "text": return handleText(request);
       }
-    case "postback": return handlePostback(request, event); break;
+    case "postback": return handlePostback(request);
     default: throw new Error(`Unknown event: ${JSON.stringify(event)}`);
   }
 }
@@ -243,7 +244,6 @@ async function handleText(request) {
 }
 // =================================== Handle Postback ===================================
 function handlePostback(request) {
-  // Define Rich MENU ID
   let richMenuId001 = env.RICH_MENU_ID001;
   let richMenuId002 = env.RICH_MENU_ID002;
   let richMenuId003 = env.RICH_MENU_ID003;
@@ -257,23 +257,21 @@ function handlePostback(request) {
   } 
   else{
     let event = request.body.events[0];
-    if(event.type === "postback"){
-        switch(event.postback.data){
-            case "toMainMenu": linkRichMenu(event.source.userId, richMenuId001); break;
-            case "toTaeeMenu": linkRichMenu(event.source.userId, richMenuId002); break;
-            case "toUserMenu": linkRichMenu(event.source.userId, richMenuId003); break;
-            case "toTaeeSignalToType": linkRichMenu(event.source.userId, richMenuId004); break;
-            case "toTaeeControlToType": linkRichMenu(event.source.userId, richMenuId005); break;
-            case "toUserSignalToType": linkRichMenu(event.source.userId, richMenuId006); break;
-            case "toUserControlToType": linkRichMenu(event.source.userId, richMenuId007); break;
-            default: break;
-        }
+    switch(event.postback.data){
+        case "toMainMenu": return linkRichMenu(event.source.userId, richMenuId001);
+        case "toTaeeMenu": return linkRichMenu(event.source.userId, richMenuId002); 
+        case "toUserMenu": return linkRichMenu(event.source.userId, richMenuId003);
+        case "toTaeeSignalToType": return linkRichMenu(event.source.userId, richMenuId004); 
+        case "toTaeeControlToType": return linkRichMenu(event.source.userId, richMenuId005); 
+        case "toUserSignalToType": return linkRichMenu(event.source.userId, richMenuId006); 
+        case "toUserControlToType": return linkRichMenu(event.source.userId, richMenuId007); 
+        default: break; 
     }
   }
 }
 // =================================== linkRichMenu Function ===================================
 async function linkRichMenu(userId, richMenuId) {  
-  await request.post({
+  await request_promise.post({
       uri: `https://api.line.me/v2/bot/user/${userId}/richmenu/${richMenuId}`,
       headers: {
           Authorization: `Bearer ${env.ACCESS_TOKEN}`
@@ -300,6 +298,7 @@ appFulfillment.post("/webhook", line.middleware(lineConfig), (request, response)
   Promise.all(request.body.events.map(event => {
     return handleEvent(request, event);
   }))
+  response.send(200);
 });
 
 appFulfillment.post("/fulfillment", (request, response) => {
