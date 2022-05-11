@@ -101,7 +101,7 @@ async function suggestToUSERConfirm(agent){
   let course = agent.parameters.Course;
   let contentType = agent.parameters.TypeOfSource;
   let contentOfCourse;
-  let valid;
+  let valid, dataExist;
   var arrayOfData = [];
   console.log("course : ",course);
   console.log("content T : ",contentType);
@@ -135,6 +135,11 @@ async function suggestToUSERConfirm(agent){
   if(valid == 0){
     if(contentType == "Textbook"){
       const orderByAvgScore = await dataRef.orderBy("avgScore", "desc").limit(limitdata).get();
+      if(orderByAvgScore.empty){
+        console.log("No matching documents.");
+        await agent.add("ยังไม่มีเนื้อหานี้ในระบบขอโทษด้วยน้าา");
+        return;
+      }
       orderByAvgScore.forEach(doc => {
         console.log("doc.id : ", doc.id);
         arrayOfData.push([doc.id, doc.data().source]);
@@ -142,6 +147,11 @@ async function suggestToUSERConfirm(agent){
     }
     else{
       const orderByAvgScore = await dataRef.doc("data").collection(contentOfCourse).orderBy("avgScore", "desc").limit(limitdata).get();
+      if(orderByAvgScore.empty){
+        console.log("No matching documents.");
+        await agent.add("ยังไม่มีเนื้อหานี้ในระบบขอโทษด้วยน้าา");
+        return;
+      }
       orderByAvgScore.forEach(doc => {
         console.log("doc.id : ", doc.id);
         arrayOfData.push([doc.id, doc.data().source]);
@@ -153,7 +163,6 @@ async function suggestToUSERConfirm(agent){
     // Structure of data : arrayOfData[x][y] y = 0 : docId, y = 1 : sourceURL
     docId = arrayOfData[random][0];
     data = arrayOfData[random][1];
-    // data out and send context
     let paramCtx = {docId};
     let ctx = {"name": "docidctx", "lifespan": 1, "parameters": {"docId": paramCtx}};
     agent.setContext(ctx);
@@ -228,11 +237,12 @@ async function userReviewConfirm(agent){
 
 // =================================== Handle Event Function ===================================
 async function handleEvent(request, event) {
-  console.log("Handle Event");
+  console.log("Request : ", request.body);
   switch(event.type){
     case "message":
       switch(event.message.type){
         case "text": return handleText(request);
+        case "sticker": return handleSticker(request);
       }
     case "postback": return handlePostback(request);
     default: throw new Error(`Unknown event: ${JSON.stringify(event)}`);
@@ -241,6 +251,15 @@ async function handleEvent(request, event) {
 // =================================== Handle Text ===================================
 async function handleText(request) {
   return await postToDialogflow(request);
+}
+// =================================== Handle Sticker ===================================
+async function handleSticker(request) {
+  let random = Math.floor(Math.random() * (10894 - 10855 + 1)) + 10855
+  return await client.replyMessage(request.body.events[0].replyToken, {
+    type: "sticker",
+    packageId: "789",
+    stickerId: random.toString()
+  });
 }
 // =================================== Handle Postback ===================================
 function handlePostback(request) {
@@ -314,3 +333,4 @@ appFulfillment.post("/fulfillment", (request, response) => {
 
 exports.dialogflowFirebaseFulfillment = functions.region("asia-southeast1").https.onRequest(appFulfillment);
 
+ 
